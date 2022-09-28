@@ -1,0 +1,232 @@
+# lognormal model with fire as primary variable
+library(R2jags)
+library(tidyverse)
+library(cowplot)
+library(here)
+theme_set(theme_cowplot())
+
+library(bayesplot)
+library(ggridges)
+
+# START #####################################
+data <- read.csv(here("data/output/soil_variables.csv"))
+
+data <- data %>%
+  filter(TREAT != 0)
+
+data <- na.omit(data)
+
+# setting up biomass data
+soil_y <- as.numeric(data$Soil_gm2)
+nPlot <- 41
+
+summary(soil_y)
+
+data$site <- ifelse(data$SITE == "DALTON", 1,2)
+site <- data$site
+
+# independent variables
+fire_x1 <- as.factor(data$TREAT)
+
+log.glm <- glm(log(Soil_gm2) ~ data$TREAT, family = gaussian, data = data)
+
+summary(log.glm)
+# y = 8.2 + -0.17x
+
+# RANDOM SLOPE + INTERCEPT #####################################################
+
+site <- data$site
+nSite <- 2
+nCoef <- 2 # number of regression coefficients
+
+jagsdata_3 <- with(data, # creates a list of elements
+                   list(y = soil_y,
+                        nSite = nSite,
+                        site = site,
+                        x1 = fire_x1,
+                        N = length(data$Soil_gm2)))
+
+mod3_jags <- function(){
+  # Likelihood:
+  for (i in 1:N){
+    y[i] ~ dlnorm(mu[i], tau) # tau is precision (1 / variance)
+    mu[i] = intercept[1] + intercept[2]*site[i] + (beta[1] + beta[2]*site[i]) * x1[i]
+
+  }
+  # Priors:
+  for(i in 1:nSite){
+    intercept[i] ~ dnorm(0,0.01)
+    beta[i] ~ dnorm(0, 0.01)
+  }
+
+  tau <- 1/(sigma * sigma)
+
+  sigma ~ dgamma(0.01, 0.01)
+}
+
+# initial values ############################
+init_values3 <- function(){ # specifies initial parameter values
+  list(beta = rnorm(nCoef), intercept = rbinom(2,1,0.5),
+       sigma = runif(1))
+}
+
+# parameters to track
+params3 <- c("intercept", "beta","tau")
+
+# Run the model in JAGS ###########################################3
+fit_mod <- jags(data = jagsdata_3, # specifies data
+                 inits = init_values3,
+                 parameters.to.save = params3,
+                 model.file = mod3_jags,
+                 n.chains = 3, # number of chains
+                 n.iter = 2500,
+                 n.burnin = 0) # only keeps every 10th iteration)
+fit_mod
+
+#traceplot(fit_mod)
+plot(fit_mod)
+
+fit_mod_mcmc <- as.mcmc(fit_mod)
+## plots ###########################
+fit_mod_matrix <- as.matrix(fit_mod_mcmc)
+fit_mod_df <- as.data.frame(fit_mod_matrix)
+
+### beta #########################
+fit_mod_betas <-fit_mod_df[, grep(x = colnames(fit_mod_df),
+                                         pattern = "beta[",
+                                         fixed = TRUE)]
+
+fit_coef <- fit_mod_betas %>%
+  pivot_longer(cols = everything(),
+               names_to = "Coef",
+               values_to = "Value")
+fit_coef$Coef[fit_coef$Coef == "beta[2]"] <- "Lowland Beta"
+fit_coef$Coef[fit_coef$Coef == "beta[1]"] <- "Upland Beta"
+
+coef_plot <- ggplot(fit_coef, aes(Value, Coef)) +
+  stat_density_ridges(quantile_lines = TRUE,
+                      quantiles = c(0.025, 0.5, 0.975),
+                      alpha = 0.7) +
+  scale_y_discrete(expand = expansion(add = c(0.2, 2))) +
+  geom_vline(xintercept = 0, linetype = "dashed", col = "darkgrey") +
+  theme_bw() + xlab("Posterior estimate") + ylab("") +
+  xlim(c(-1,1)) + ggtitle(" ", subtitle = " ")
+
+  # scale_fill_manual(name = "Prob.",
+  #                   values = c("white", "#99d8c9", "#99d8c9", "white"),
+  #                   labels = c("(0, 5%)", "(5%, 50%)",
+  #                              "(50%, 95%)","(95%, 100%)"))
+
+### intercept #########################
+fit_mod_int <-fit_mod_df[, grep(x = colnames(fit_mod_df),
+                                  pattern = "intercept[",
+                                  fixed = TRUE)]
+
+fit_int <- fit_mod_int %>%
+  pivot_longer(cols = everything(),
+               names_to = "Coef",
+               values_to = "Value")
+
+fit_int$Coef[fit_int$Coef == "intercept[2]"] <- "Lowland Intercept"
+fit_int$Coef[fit_int$Coef == "intercept[1]"] <- "Upland Intercept"
+
+int_plot <- ggplot(fit_int, aes(Value, Coef)) +
+  stat_density_ridges(quantile_lines = TRUE,
+                      quantiles = c(0.05, 0.5, 0.95),
+                      alpha = 0.7) +
+  scale_y_discrete(expand = expansion(add = c(0.2, 2))) +
+  geom_vline(xintercept = 0, linetype = "dashed", col = "darkgrey") +
+  theme_bw() + xlab("Posterior estimate") + ylab("") +
+  ggtitle("Soil Posterior Distributions",
+          subtitle = "with medians and 95% intervals")
+# scale_fill_manual(name = "Prob.",
+#                   values = c("white", "#99d8c9", "#99d8c9", "white"),
+#                   labels = c("(0, 5%)", "(5%, 50%)",
+#                              "(50%, 95%)","(95%, 100%)"))
+
+plot_grid( int_plot, coef_plot)
+
+# RANDOM EFFECTS + INTERCEPT #############
+siteDens <- as.vector(scale(data$dens_gm2))
+siteBA <- as.vector(scale(data$decidba_gm2))
+siteSOL <- as.vector(scale(data$avSOLdepth_CM))
+nCoef <- 2
+nSiteCoef <- 3
+site <- as.factor(site)
+nSite <- 2
+
+jagsdata_4 <- with(data, # creates a list of elements
+                   list(y = biomass_y,
+                        nSite = nSite,
+                        nSiteCoef = nSiteCoef,
+                        #nCoef = nCoef,
+                        site = site,
+                        x1 = fire_x1,
+                        siteDens = siteDens,
+                        siteBA = siteBA,
+                        siteSOL = siteSOL,
+                        nPlot = nPlot))
+
+mod4_jags <- function(){
+  # Likelihood - in JAGS, normal distribution is parameterized by
+  # mean theta and precision = tau2 = 1/sig2
+  for (i in 1:nPlot) {
+    y[i] ~ dlnorm(muPlot[i], tau)
+    muPlot[i] <- intercept[site[i]] + betaPlot[site[i]] * x1[i]
+  }
+  for(j in 1:nSite){
+    intercept[j] ~ dnorm(muSite[j], tau.intercept )
+    muSite[j] <- betaSite[1]*siteDens[j] + betaSite[2]*siteBA[j] + betaSite[3]*siteSOL[j]
+  }
+
+  # Priors
+  for(i in 1:nSite) {
+    betaPlot[i] ~ dnorm(0, 0.01)
+  }
+
+  for(j in 1:nSiteCoef){
+    betaSite[j] ~ dnorm(0, 0.01)
+  }
+
+  tau <- 1/(sigma * sigma)
+  tau.intercept <- 1/(sigma.intercept * sigma.intercept)
+
+  sigma ~ dgamma(0.01, 0.01)
+  sigma.intercept ~ dgamma(0.01, 0.01)
+}
+
+
+# initial values ############################
+init_values4 <- function(){ # specifies initial parameter values
+  list(betaSite = rnorm(nSiteCoef),
+       intercept = rbinom(nSite, 1, 0.5),
+       sigma = runif(1),
+       sigma.intercept = runif(1))
+}
+
+# parameters to track
+params4 <- c("intercept", "betaSite","betaPlot", "tau", "tau.intercept")
+
+# Run the model in JAGS ###########################################
+fit_mod4 <- jags(data = jagsdata_4, # specifies data
+                 inits = init_values4,
+                 parameters.to.save = params4,
+                 model.file = mod4_jags,
+                 n.chains = 3, # number of chains
+                 n.iter = 2000,
+                 n.burnin = 0) # only keeps every 10th iteration)
+fit_mod4
+
+plot(fit_mod4)
+
+traceplot(fit_mod4)
+
+samplesPlot(mod2_mcmc, var = c("beta", "intercept"))
+
+chainsPlot(mod2_mcmc)
+
+head(mod2_mcmc[[1]])
+
+lm1_mcmc_combi <- as.mcmc(rbind(mod2_mcmc[[1]], mod2_mcmc[[2]], mod2_mcmc[[3]]))
+
+plot(lm1_mcmc_combi[, "icc"])

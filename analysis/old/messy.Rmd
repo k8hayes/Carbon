@@ -1,0 +1,229 @@
+---
+title: "Bayesian"
+output: html_document
+---
+
+## Setting up
+
+```{r setup, include=FALSE}
+install.packages("rjags")
+library(here)
+library(MASS)
+```
+
+https://www.r-bloggers.com/2020/04/no-excuse-not-to-be-a-bayesian-anymore-2/
+
+```{r cars}
+
+
+
+```
+
+
+
+
+```{r pressure, echo=FALSE}
+
+# example in linear model language
+ig <- glm(data$Biomass ~ data$TREAT, family = inverse.gaussian)
+summary(ig)
+par(mfrow=c(2,4))
+plot(ig)
+plot(gamma)
+
+
+
+N <- 50 # dataset contains 50 plots
+beta0 <- 1
+beta1 <- 1
+x <- data$TREAT
+mu <- beta0*1 + beta1*x
+lambda <- exp(mu)
+r <- 2
+y <- data$Biomass
+dat <- data.frame(x,y)
+
+library(R2jags)
+m <- function() {
+  # Priors:
+  a ~ dnorm(0, 0.0001) # mean, precision = N(0, 10^4)
+  b ~ dnorm(0, 0.0001)
+  shape ~ dunif(0, 100)
+
+  # Likelihood data model:
+  for (i in 1:N) {
+    linear_predictor[i] <- a + b * x[i]
+    # dgamma(shape, rate) in JAGS:
+    y[i] ~ dgamma(shape, shape / exp(linear_predictor[i]))
+  }
+}
+
+m_jags <- R2jags::jags(data = list(N = N, y = y, x = x),
+  parameters.to.save = c("a", "b", "shape"), model.file = m)
+
+m_jags_sims <- m_jags$BUGSoutput$sims.list
+lapply(m_jags_sims, mean)[c(1, 2, 4)]
+
+forJags <- list(X=cbind(1,dat$x),
+                y=dat$y,
+                N=N)
+
+jagsmodel <- jags.model(file="analysis/model.test2.R",
+                        data=forJags,
+                        n.adapt=5e3)
+
+out <- coda.samples(jagsmodel,
+                    variable.names=c("beta","r"),
+                    n.iter=1e5,
+                    thin=5)
+
+summary(out)
+summary(glm.nb(y~x,data=dat))
+plot(out) 
+
+heidel.diag(out)  # assess stationarity
+
+raftery.diag(out)  # assess required run length
+
+
+effectiveSize(out)  # assess independence of draws
+
+```
+
+https://georgederpa.github.io/teaching/countModels.html
+
+https://www4.stat.ncsu.edu/~bjreich/BSMdata/errors.html
+
+
+```{r}
+N <- 50 # dataset contains 50 plots
+beta0 <- 1
+beta1 <- 1
+x <- data$TREAT
+mu <- beta0*1 + beta1*x
+lambda <- exp(mu)
+r <- 2
+y <- data$Biomass
+dat <- data.frame(x,y)
+
+forJags <- list(X=cbind(1,dat$x),
+                y=dat$y,
+                N=N,
+                mu.beta=rep(0,2),
+                tau.beta=diag(.0001,2))
+
+jagsmodel <- jags.model(file="analysis/model.test.R",
+                        data=forJags,
+                        n.adapt=5e3)
+
+out <- coda.samples(jagsmodel,
+                    variable.names=c("beta","r"),
+                    n.iter=1e5,
+                    thin=5)
+
+summary(out)
+summary(glm.nb(y~x,data=dat))
+plot(out) 
+
+heidel.diag(out)  # assess stationarity
+
+raftery.diag(out)  # assess required run length
+
+
+effectiveSize(out)  # assess independence of draws
+
+```
+
+
+
+Can i make this run with SITE?
+
+```{r}
+N = 50 # observations here are plots, and there's 50 plots
+x = data$SITE # SITE
+y = data$Biomass # aboveground biomass of over + understory #g/m2
+
+forJags1 <- list(x = x, # pulls in each value as a list
+                y = y,
+                N = N)
+
+jagsmodel1 <- rjags::jags.model(file = "gamma.model.txt", # calls in the model text file
+                        data = forJags, # calls in data
+                        n.chains = 3,# number of parallel chains for model
+                        # inits = not set # can specify optimal initial values 
+                                        # will generate automatically if not set
+                        n.adapt = 5000) # number of iterations for adaptation # can be 0
+                                          # made mine real long
+```
+
+
+
+```{r}
+varnames=c("a", "b", "deviance", "var1")
+out1 <- rjags::coda.samples(jagsmodel, 
+                    varnames, # 2 variables from model
+                    n.iter=1e5, # increase chain length from default
+                    thin=5) 
+
+summary(out1)
+dic.samples(out1)
+
+glm.gamma1 <- glm(data$Biomass ~ data$SITE, family = Gamma(link = "log"))
+summary(glm.gamma1)
+```
+```{r}
+
+
+
+coda.samples.dic <- function (model, variable.names = NULL, n.iter, thin = 1, ...) 
+{
+      load.module('dic') # necessary for pD and deviance monitor
+
+      start <- model$iter() + thin
+      varnames=c(variable.names, c('deviance', 'pD'))
+      out <- jags.samples(model, varnames, n.iter, thin, 
+           type = "trace", ...)
+      deviance <- out$deviance
+      pD <- out$pD
+      out$deviance <- NULL
+      out$pD <- NULL    
+      ans <- vector("list", nchain(model))
+      for (ch in 1:nchain(model)) {
+           ans.ch <- vector("list", length(out))
+           vnames.ch <- NULL
+           for (i in seq(along = out)) {
+                varname <- names(out)[[i]]
+                d <- dim(out[[i]])
+                if (length(d) < 3) {
+                      stop("Invalid dimensions for sampled output")
+                }
+                vardim <- d[1:(length(d) - 2)]
+                nvar <- prod(vardim)
+                niter <- d[length(d) - 1]
+                nchain <- d[length(d)]
+                values <- as.vector(out[[i]])
+                var.i <- matrix(NA, nrow = niter, ncol = nvar)
+                for (j in 1:nvar) {
+                      var.i[, j] <- values[j + (0:(niter - 1)) * nvar + 
+                        (ch - 1) * niter * nvar]
+                }
+                vnames.ch <- c(vnames.ch, coda.names(varname, vardim))
+                ans.ch[[i]] <- var.i
+           }
+           ans.ch <- do.call("cbind", ans.ch)
+           colnames(ans.ch) <- vnames.ch
+           ans[[ch]] <- mcmc(ans.ch, start = start, thin = thin)
+      }
+
+      dic <- list(deviance = mean(as.vector(deviance)), penalty = mean(as.vector(pD)), type = 'pD')
+      class(dic) <- "dic"
+      return(list(samples=mcmc.list(ans), dic=dic))
+}
+
+
+test <- coda.samples.dic(jagsmodel1,
+                         n.iter=1e5,
+                         variable.names = c("dic"),
+                         thin = 5)
+```
+function above comes from: https://ihrke.github.io/post/2014/10/07/dicjags/
