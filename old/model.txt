@@ -1,0 +1,13 @@
+
+model {
+  # Likelihood
+  for (i in 1:N) { y[i] ~ dnorm(mu[i], tau)
+    mu[i] <- alpha + x[i] * beta
+  }
+
+  # Priors:
+    alpha ~ dnorm(0, 0.01) # intercept
+    beta ~ dnorm(0, 0.01) # slope
+    sigma ~ dunif(0, 100) # standard deviation
+    tau <- 1 / ( sigma * sigma)  # precision (1/variance)
+}

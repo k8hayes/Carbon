@@ -1,0 +1,17 @@
+
+model {
+  # Likelihood data model:
+  for (i in 1:N) { # loops over every individual
+    linear_predictor[i] <- a + b * x[i] # deterministic relationship
+    # dgamma(shape, rate) in JAGS:
+    y[i] ~ dgamma(shape, shape / exp(linear_predictor[i])) # stochastic relationship
+  }
+  
+  # dgamma in R is parameterized by shape and rate parameters, not mean/mode/sd
+  
+  
+  # Priors:
+  a ~ dnorm(0, 0.0001) # mean, precision = N(0, 10^4)
+  b ~ dnorm(0, 0.0001)
+  shape ~ dunif(0, 100) # uniform density distribution from 0-100
+}
