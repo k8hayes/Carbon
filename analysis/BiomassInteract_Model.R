@@ -31,7 +31,7 @@ fire_x1 <- as.factor(data$TREAT)
 log.glm <- glm(log(Biomass_gm2) ~ data$TREAT, family = gaussian, data = data)
 
 summary(log.glm)
-# y = 7.7 + -0.35x
+# y = 7.9 + -0.47x
 
 # RANDOM SLOPE + INTERCEPT #####################################################
 
