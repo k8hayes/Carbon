@@ -24,6 +24,7 @@ options(scipen = 999)
 
    over <- read.csv(here("data/output/overstory_biomass_plot.csv"))
    over <- over %>%
+     rename(Biomass_m2 = biomass_m2) %>%
      dplyr::select(c(SITE, TREAT, PLOT, Biomass_m2))
    over$TYPE <- "Overstory"
 
@@ -68,7 +69,7 @@ veg <- read.csv(here("data/output/veg_weight_plot.csv"))
 
 veg %>%
   group_by(SITE, TREAT) %>%
-  summarise(mean(Biomass_g), sd(Biomass_g))
+  summarise(mean(Biomass_g), sd(Biomass_g, na.rm = T))
 
 tab %>%
   group_by(TREAT) %>%
@@ -79,12 +80,12 @@ tab %>%
             rnorm(14, 45.7,39.2),
             rnorm(13, 25,22.4))
 
-tab <- test %>%
-  select(!c(PLOT.y, SITE.y)) %>%
-  rename("veg_weight_gm2" = "Biomass_g", "PLOT" = "PLOT.x",
-         "SITE" = "SITE.x")
-rm(test)
+# tab <- test %>%
+#   dplyr::select(!c(PLOT.y, SITE.y)) %>%
+#   rename("veg_weight_gm2" = "Biomass_g", "PLOT" = "PLOT.x",
+#          "SITE" = "SITE.x")
+# rm(test)
 
-tab$TAB <- tab$Overstory + tab$Understory + tab$CWD + tab$veg_weight_gm2
+# tab$TAB <- tab$Overstory + tab$Understory + tab$CWD + tab$veg_weight_gm2
 
 write.csv(tab, here("data/output/biomass_plot.csv"), row.names = FALSE)

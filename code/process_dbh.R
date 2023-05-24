@@ -38,4 +38,13 @@ dbh <- read.csv(here("data/dbh_raw.csv"))
   dbh$EXP_FACT[dbh$QUAD == .1] <- 1000
   dbh$EXP_FACT[dbh$QUAD == .2] <- 500
 
- write.csv(dbh, here("data/dbh.csv"), row.names = F)
+ # adding age column
+  age <- read.csv(here("data/site_age.csv"))
+  
+  age <- age %>%
+    select(c(SITE, TREAT, PLOT, USE)) %>%
+    rename(AGE = USE)
+  
+ dbh <- merge(dbh, age, by = c("SITE", "TREAT", "PLOT"))
+ 
+write.csv(dbh, here("data/dbh.csv"), row.names = F)

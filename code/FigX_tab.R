@@ -6,6 +6,7 @@ library(here)
 
 # Dataset combined #############
 tab <- read.csv(here("data/output/tab_plot.csv"))
+tab$Overstory <- tab$Overstory / 2
 
 tab_pivot <- tab %>%
   pivot_longer(cols = c(Overstory, Understory, CWD, TAB)) %>%
@@ -13,6 +14,7 @@ tab_pivot <- tab %>%
 
 tab_pivot$Type <- factor(tab_pivot$Type, levels = c("TAB", "CWD", "Overstory", "Understory"))
 
+# Plot #####################
 ggplot(tab_pivot, aes(x = as.factor(TREAT), y = Biomass_m2, fill = Type)) + geom_boxplot() +
   labs(x ="Number of Fires",
        y = "Total Biomass (g/m2)",
@@ -25,21 +27,25 @@ ggplot(tab_pivot, aes(x = as.factor(TREAT), y = Biomass_m2, fill = Type)) + geom
   geom_hline(yintercept = 2770, linetype = "dashed", color = "grey")
 # save as 650 by 450
 
-# split by site
-ggplot(tab_pivot, aes(x = as.factor(TREAT), y = Biomass_m2, fill = Type)) + geom_boxplot() +
+# Plot by site #######################
+
+tab_pivot$SITENAME[tab_pivot$SITE == "DALTON"] <- "Upland"
+tab_pivot$SITENAME[tab_pivot$SITE == "STEESE"] <- "Lowland"
+
+tab_pivot %>%
+  filter(Type != "TAB") %>%
+  ggplot(aes(x = as.factor(TREAT), y = Biomass_m2, fill = Type)) + geom_boxplot() +
   labs(x ="Number of Fires",
        y = "Total Biomass (g/m2)",
-       title = "Total Aboveground Biomass") +
+       title = "Total aboveground biomass") +
   scale_fill_manual(name = "Carbon Pool",
-                    label = c("Total Aboveground Biomass",
+                    label = c(
                               "Coarse Woody Debris", "Overstory Biomass",
                               "Understory Biomass"),
-                    values = c("#fec44f","#4292c6","#9ecae1", "#deebf7")) +
-  geom_hline(yintercept = 2770, linetype = "dashed", color = "grey") +
-  facet_wrap(~SITE) +
-  geom_hline(yintercept = 500, color = "red")
+                    values = c("#fec44f","#2171b5","#9ecae1")) +
+  facet_wrap(~SITENAME)  
 
-
+# export as FigX_tab # 900 by 400
 
 # code for splitting unburned and burned
 # plot0x <- tab_pivot %>%
@@ -75,7 +81,7 @@ ggplot(tab_pivot, aes(x = as.factor(TREAT), y = Biomass_m2, fill = Type)) + geom
 #
 # plot_grid(plot0x, plot123x, rel_widths = c(0.75, 1.5))
 
-# proportions
+# proportions ############################
 
 tab_sum <- tab %>%
   group_by(TREAT) %>%

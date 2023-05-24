@@ -13,10 +13,11 @@ library(cowplot)
 theme_set(theme_cowplot())
 
 '%!in%' <- Negate('%in%')
+# start #################################
 
 biomass <- read.csv(here("data/output/biomass_plot.csv"))
+biomass$Overstory <- biomass$Overstory / 2
 
-# soil #############################
 soil <- read.csv(here("data/output/soil_c.csv"))
 
 soil <- soil %>%
@@ -46,7 +47,7 @@ totalC_piv <- totalC %>%
 totalC_piv$Type <- factor(totalC_piv$Type, levels = c("totalC", "Soil", "CWD", "Overstory", "Understory" ))
 
 # export
-write.csv(totalC_piv, here("data/output/totalC_piv.csv"), row.names = F)
+#write.csv(totalC_piv, here("data/output/totalC_piv.csv"), row.names = F)
 
 # Plot of all ########################################
 # ggplot(totalC_piv, aes(x = as.factor(TREAT), y = Carbon_m2, fill = Type)) +
@@ -84,26 +85,34 @@ write.csv(totalC_piv, here("data/output/totalC_piv.csv"), row.names = F)
 #                     values = c("#e34a33","#d8b365", "#4292c6","#9ecae1", "#deebf7"))
 # plot123x
 
+totalC_piv <- read.csv(here("data/output/totalC_piv.csv"))
+
 totalC_piv$SITENAME[totalC_piv$SITE == "DALTON"] <- "UPLAND"
 totalC_piv$SITENAME[totalC_piv$SITE == "STEESE"] <- "LOWLAND"
 
 totalC_piv %>%
   ggplot(aes(x = as.factor(TREAT), y = Carbon_m2, fill = Type)) + geom_boxplot() +
-  labs(title = "Total Carbon across pools and fire history", x = " ", y = "Total Carbon (grams/m2)") +
+  labs(title = "Total Carbon across pools and fire history",
+       x = "Number of Fires",
+       y = "Total Carbon (grams per mˆ2)") +
   scale_fill_manual(name = "Carbon Pool",
                     label = c("Total Carbon", "Soil",
                               "Coarse Woody Debris", "Aboveground Biomass",
                               "Understory Biomass"),
-                    values = c("#e34a33","#d8b365", "#4292c6","#9ecae1", "#deebf7")) +
+                    values = c("#e34a33","#d8b365", "#4292c6","#74c476", "#deebf7")) +
   facet_wrap(~SITENAME)
-
+# save as 825 by 350
 # plot_grid(plot0x, plot123x, rel_widths = c(0.75, 1.5)) # 900 x 400
+
+# test
+
+
 
 # summary %s ##################################
 cper <- totalC_piv %>%
   filter(Type == "totalC") %>%
   group_by(SITE,TREAT) %>%
-  summarise(mean = mean(Carbon_m2, na.rm = T) )
+  summarise(mean = mean(Carbon_m2, na.rm = T), sd = sd(Carbon_m2, na.rm = T) )
 
 cper <- totalC_piv %>%
   filter(Type != "totalC") %>%
@@ -116,4 +125,4 @@ cper$per <- round(cper$mean / cper$total  * 100, digits = 2)
 # pulling averages for draft
 tot <- totalC %>%
   group_by(SITE, TREAT) %>%
-  summarise(SD = sd(totalC), AV = mean(totalC))
+  summarise(SD = sd(totalC), AV = mean(totalC, na.rm = T))

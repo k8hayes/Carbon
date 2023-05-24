@@ -83,7 +83,8 @@ fit_dalton <- jags(data = jagsdata_dalton, # specifies data
                  n.burnin = 0) # burns out first 100
 fit_dalton
 
-traceplot(fit_dalton)
+traceplot(fit_dalton, mfrow = c(2,3),
+          ask = F)
 
 
 fit_dalt_mcmc <- as.mcmc(fit_dalton)
@@ -177,9 +178,10 @@ fit_steese <- jags(data = jagsdata_ste, # specifies data
                  n.burnin = 0) # only keeps every 10th iteration)
 fit_steese
 
-traceplot(fit_steese)
+traceplot(fit_steese, mfrow = c(2,3), ask = F)
 plot(fit_steese)
 
+mcmctab(fit_steese)
 steese_mcmc <- as.mcmc(fit_steese)
 
 ## plots ###########################

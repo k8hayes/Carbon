@@ -193,7 +193,7 @@ rm(dalt_pime, stee_pime)
       values_to = "Biomass")
 
   ggplot(pime, aes(x = DBH)) +
-    geom_point(aes(y = Biomass, col = EQ)) +
+    geom_point(aes(y = Biomass / 2, col = EQ)) +
     geom_ribbon(aes(ymax = Biomass, ymin = Biomass, fill = EQ), alpha = .3) +
     geom_vline(xintercept = c(0.1, 26), linetype = "dashed") +
     geom_vline(xintercept = c(0, 12.8), linetype = "dashed", col = "blue")  +
@@ -591,48 +591,22 @@ test <- rbind(pime, birch, potr, poba, salix, alcr)
  write.csv(spp_biomass, here("data/output/spp_biomass_plot.csv"), row.names = F)
 
 
- ## For Shelby ####################################
+ ## Per Plot ####################################
   plot_biomass <- test %>%
-    group_by(SITE, TREAT, QUAD, EXP_FACT, PLOT, SPP) %>%
+    group_by(SITE, TREAT, QUAD, EXP_FACT, PLOT) %>%
     summarise(Biomass_sum = sum(Biomass),
-              Biomass_AV = mean(Biomass),
               Biomass_SD = sd(Biomass))
 
   plot_biomass$Biomass_sum_plot <- NA
 
   plot_biomass$Biomass_sum_plot[plot_biomass$QUAD== 1.0] <- plot_biomass$Biomass_sum[plot_biomass$QUAD == 1.0]*4
   plot_biomass$Biomass_sum_plot[plot_biomass$QUAD== 2.0] <- plot_biomass$Biomass_sum[plot_biomass$QUAD == 2.0]*2
-  plot_biomass$Biomass_sum_plot[plot_biomass$QUAD== 0.2] <- plot_biomass$Biomass_sum[plot_biomass$QUAD == 0.2]*10
-
-  plot_biomass$Biomass_av_plot <- NA
-
-  plot_biomass$Biomass_av_plot[plot_biomass$QUAD== 1.0] <- plot_biomass$Biomass_AV[plot_biomass$QUAD == 1.0]*4
-  plot_biomass$Biomass_av_plot[plot_biomass$QUAD== 2.0] <- plot_biomass$Biomass_AV[plot_biomass$QUAD == 2.0]*2
-  plot_biomass$Biomass_av_plot[plot_biomass$QUAD== 0.2] <- plot_biomass$Biomass_AV[plot_biomass$QUAD == 0.2]*10
-
-  plot_biomass$Biomass_sd_plot <- NA
-
-  plot_biomass$Biomass_sd_plot[plot_biomass$QUAD== 1.0] <- plot_biomass$Biomass_SD[plot_biomass$QUAD == 1.0]*4
-  plot_biomass$Biomass_sd_plot[plot_biomass$QUAD== 2.0] <- plot_biomass$Biomass_SD[plot_biomass$QUAD == 2.0]*2
-  plot_biomass$Biomass_sd_plot[plot_biomass$QUAD== 0.2] <- plot_biomass$Biomass_SD[plot_biomass$QUAD == 0.2]*10
-
-  plot_biomass_shelby <- plot_biomass %>%
-    ungroup() %>%
-    select(c(SITE, TREAT, PLOT, SPP, Biomass_sum_plot, Biomass_av_plot)) %>%
-    rename("FIRES" = "TREAT", "BIOMASS_SUM" = "Biomass_sum_plot",
-           "BIOMASS_AV" = "Biomass_av_plot", "SPECIES" =
-             "SPP")
-
-  write.csv(plot_biomass_shelby,
-            here("data/output/plot_biomass_shelby.csv"), row.names = FALSE)
+  plot_biomass$Biomass_sum_plot[plot_biomass$QUAD== 0.2] <- plot_biomass$Biomass_sum[plot_biomass$QUAD == 0.2]*20
 
   colnames(plot_biomass)
 
   plot_biomass$biomass_m2 <- plot_biomass$Biomass_sum_plot / 400
 
-  plot_biomass <- plot_biomass %>%
-    group_by(SITE, TREAT, PLOT) %>%
-    summarise(Biomass_m2 = sum(biomass_m2))
 
 # Exporting file ###############################
 
@@ -642,7 +616,7 @@ test <- rbind(pime, birch, potr, poba, salix, alcr)
    plot_biomass <- read.csv(here("data/output/overstory_biomass_plot.csv"))
 
  # plotting biomass per plot between upland and lowland (in g/m2)
-   ggplot(plot_biomass, aes(x = as.factor(TREAT), y = Biomass_m2, fill = SITE)) + geom_boxplot() +
+   ggplot(plot_biomass, aes(x = as.factor(TREAT), y = biomass_m2, fill = SITE)) + geom_boxplot() +
     labs(title = "Total Overstory Biomass (live + dead)", x = "Number of Fires", y = "Biomass (grams/m2)") +
     scale_fill_manual(name = "Site", labels = c("Upland", "Lowland"),
                       values = c("#99d8c9","#2ca25f"))

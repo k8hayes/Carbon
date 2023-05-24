@@ -5,6 +5,8 @@ library(tidyverse)
 library(cowplot)
 library(here)
 theme_set(theme_cowplot())
+devtools::source_url("https://raw.githubusercontent.com/jkarreth/JKmisc/master/mcmctab.R")
+
 
 library(ggmcmc) # http://www.jkarreth.net/files/Lab5_Postestimation.html
 library(ggridges)
@@ -83,8 +85,10 @@ fit_dalton <- jags(data = jagsdata_dalton, # specifies data
                    n.burnin = 0) # burns out first 100
 fit_dalton
 
-traceplot(fit_dalton)
+traceplot(fit_dalton, mfrow = c(2,3), ask = F)
 plot(fit_dalt_mcmc)
+
+mcmctab(fit_dalton)
 
 fit_dalt_mcmc <- as.mcmc(fit_dalton)
 
@@ -178,8 +182,8 @@ fit_steese
 
 plot(fit_steese)
 
-traceplot(fit_steese)
-
+traceplot(fit_steese, mfrow = c(2,3), ask = F)
+mcmctab(fit_steese)
 steese_mcmc <- as.mcmc(fit_steese)
 
 ## plots ###########################

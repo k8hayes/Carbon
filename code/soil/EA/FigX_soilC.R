@@ -77,3 +77,8 @@ orgAV <- data %>%
   filter(ORG_MIN == "O") %>%
   group_by(SITE, TREAT) %>%
   summarise(SD = sd(C_gm2), AV = mean(C_gm2))
+
+minAV <- data %>%
+  filter(ORG_MIN == "M") %>%
+  group_by(SITE, TREAT) %>%
+  summarise(SD = sd(C_gm2), AV = mean(C_gm2))
