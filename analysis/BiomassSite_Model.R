@@ -80,7 +80,7 @@ fit_dalton <- jags(data = jagsdata_dalton, # specifies data
                  model.file = dalt_model,
                  n.chains = 3, # number of chains
                  n.iter = 2500,
-                 n.burnin = 0) # burns out first 100
+                 n.burnin = 100) # burns out first 100
 fit_dalton
 
 traceplot(fit_dalton, mfrow = c(2,3),
